@@ -18,6 +18,22 @@ export function isRunningInIframe() {
 }
 
 /**
+ * Kiểm tra xem FlutterChannel có sẵn sàng không
+ * @returns {boolean} True nếu FlutterChannel đã được khởi tạo
+ */
+export function isFlutterChannelAvailable() {
+  return window.FlutterChannel && typeof window.FlutterChannel.postMessage === 'function';
+}
+
+/**
+ * Kiểm tra xem jsChannel có sẵn sàng không
+ * @returns {boolean} True nếu jsChannel có sẵn
+ */
+export function isJsChannelAvailable() {
+  return typeof JsChannel !== 'undefined';
+}
+
+/**
  * Gửi thông báo đến trang web chứa iframe
  * @param {string} type - Loại thông báo
  * @param {Object} data - Dữ liệu kèm theo
@@ -46,11 +62,45 @@ export function sendMessageToParent(type, data = {}) {
 }
 
 /**
+ * Gửi thông báo qua FlutterChannel (jsChannel cho Flutter WebView)
+ * @param {string} type - Loại thông báo
+ * @param {Object} data - Dữ liệu kèm theo
+ */
+export function sendMessageViaFlutterChannel(type, data = {}) {
+  try {
+    const message = {
+      source: "phaser-robot-game",
+      type: type,
+      data: data,
+      timestamp: Date.now(),
+    };
+
+    // Kiểm tra FlutterChannel có sẵn sàng không
+    if (isFlutterChannelAvailable()) {
+      window.FlutterChannel.postMessage(JSON.stringify(message));
+      console.log(`📤 Sent message via FlutterChannel: ${type}`, data);
+      return true;
+    } else {
+      console.warn("⚠️ FlutterChannel not available, falling back to postMessage");
+      return sendMessageToParent(type, data);
+    }
+  } catch (e) {
+    console.error("❌ Error sending message via FlutterChannel:", e);
+    return false;
+  }
+}
+
+/**
  * Gửi thông báo qua PhaserChannel (cho Flutter WebView)
  * @param {string} type - Loại thông báo
  * @param {Object} data - Dữ liệu kèm theo
  */
 export function sendMessageViaPhaserChannel(type, data = {}) {
+  // Ưu tiên sử dụng FlutterChannel trước
+  if (window.FlutterChannel) {
+    return sendMessageViaFlutterChannel(type, data);
+  }
+
   try {
     const message = {
       source: "phaser-robot-game",
@@ -161,6 +211,42 @@ export function sendBatteryCollectionResult(scene, victoryResult) {
 }
 
 /**
+ * Khởi tạo FlutterChannel (jsChannel) cho Flutter WebView
+ * @param {Function} messageCallback - Callback để xử lý thông điệp từ Flutter
+ */
+export function initFlutterChannel(messageCallback) {
+  if (isJsChannelAvailable()) {
+    window.FlutterChannel = JsChannel.create('flutter_channel', {
+      onMessage: function(message, callback) {
+        console.log('📥 FlutterChannel received message:', message);
+        try {
+          const data = JSON.parse(message);
+          console.log('📥 FlutterChannel parsed data:', data);
+          
+          // Xử lý thông điệp từ Flutter
+          if (data && data.source === "flutter-app") {
+            // Gọi callback để xử lý thông điệp
+            if (typeof messageCallback === "function") {
+              messageCallback(data);
+            }
+            if (typeof callback === "function") {
+              callback(data);
+            }
+          }
+        } catch (e) {
+          console.error('❌ FlutterChannel parse error:', e);
+        }
+      }
+    });
+    console.log('🔄 FlutterChannel (jsChannel) initialized for Flutter WebView communication');
+    return true;
+  } else {
+    console.warn('⚠️ JsChannel not available, FlutterChannel will not be initialized');
+    return false;
+  }
+}
+
+/**
  * Khởi tạo hệ thống giao tiếp với webview
  * @param {Object} game - Đối tượng game Phaser
  */
@@ -257,18 +343,75 @@ export function initWebViewCommunication(game) {
     },
   };
 
-  // Thiết lập PhaserChannel cho Flutter WebView
-  window.PhaserChannel = {
-    postMessage: function(message) {
-      console.log('📤 PhaserChannel received message:', message);
-      try {
-        const data = JSON.parse(message);
-        console.log('📤 PhaserChannel parsed data:', data);
-      } catch (e) {
-        console.error('❌ PhaserChannel parse error:', e);
+  // Khởi tạo FlutterChannel với callback xử lý thông điệp
+  const flutterChannelInitialized = initFlutterChannel((message) => {
+    // Xử lý các loại thông điệp từ Flutter
+    switch (message.type) {
+      case "START_MAP": {
+        // Bắt đầu trực tiếp Scene với mapKey (bỏ qua menu)
+        const mapKey = message.data && message.data.mapKey;
+        if (mapKey) {
+          console.log(`▶️ Flutter START_MAP: ${mapKey}`);
+          game.scene.start("Scene", { mapKey });
+        }
+        break;
       }
-    }
-  };
+      case "LOAD_MAP":
+        // Xử lý yêu cầu tải map
+        if (message.data && message.data.mapKey) {
+          const scene = game.scene.getScene("Scene");
+          if (scene) {
+            // Khởi động lại scene với mapKey mới
+            scene.scene.restart({ mapKey: message.data.mapKey });
+          }
+        }
+        break;
 
-  console.log('🔄 PhaserChannel initialized for Flutter WebView communication');
+      case "RUN_PROGRAM":
+        // Xử lý yêu cầu chạy chương trình
+        if (message.data && message.data.program) {
+          const scene = game.scene.getScene("Scene");
+          if (scene) {
+            scene.loadProgram(message.data.program, true);
+          }
+        }
+        break;
+
+      case "GET_STATUS":
+        // Gửi trạng thái hiện tại
+        const scene = game.scene.getScene("Scene");
+        if (scene) {
+          const status = {
+            mapKey: scene.mapKey,
+            collectedBatteries: scene.collectedBatteries || 0,
+            collectedBatteryTypes: scene.collectedBatteryTypes || {
+              red: 0,
+              yellow: 0,
+              green: 0,
+            },
+          };
+          sendMessageViaFlutterChannel("STATUS", status);
+        }
+        break;
+    }
+  });
+
+  // Nếu FlutterChannel không khả dụng, sử dụng PhaserChannel fallback
+  if (!flutterChannelInitialized) {
+    console.warn('⚠️ FlutterChannel not available, using fallback PhaserChannel');
+    
+    // Fallback PhaserChannel
+    window.PhaserChannel = {
+      postMessage: function(message) {
+        console.log('📤 PhaserChannel received message:', message);
+        try {
+          const data = JSON.parse(message);
+          console.log('📤 PhaserChannel parsed data:', data);
+        } catch (e) {
+          console.error('❌ PhaserChannel parse error:', e);
+        }
+      }
+    };
+    console.log('🔄 PhaserChannel initialized as fallback');
+  }
 }
