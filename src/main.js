@@ -2,6 +2,7 @@ import "./style.css";
 import Phaser from "phaser";
 import MenuScene from "./scenes/MenuScene";
 import Scene from "./scenes/basics/Scene";
+import FlutterScene from "./scenes/FlutterScene";
 import { initWebViewCommunication } from "./utils/WebViewMessenger";
 
 const sizes = {
@@ -24,7 +25,7 @@ const config = {
       gravity: { y: 0 },
     },
   },
-  scene: [Scene],
+  scene: [FlutterScene, Scene, MenuScene], // FlutterScene first for Flutter integration
 };
 
 const game = new Phaser.Game(config);

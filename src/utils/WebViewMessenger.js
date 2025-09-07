@@ -259,21 +259,21 @@ export function initWebViewCommunication(game) {
     // Xử lý các loại thông điệp từ trang web chứa
     switch (message.type) {
       case "START_MAP": {
-        // Bắt đầu trực tiếp Scene với mapKey (bỏ qua menu)
+        // Bắt đầu trực tiếp FlutterScene với mapKey
         const mapKey = message.data && message.data.mapKey;
         if (mapKey) {
           console.log(`▶️ START_MAP: ${mapKey}`);
-          game.scene.start("Scene", { mapKey });
+          game.scene.start("FlutterScene", { mapKey });
         }
         break;
       }
       case "LOAD_MAP":
         // Xử lý yêu cầu tải map
         if (message.data && message.data.mapKey) {
-          const scene = game.scene.getScene("Scene");
+          const scene = game.scene.getScene("FlutterScene");
           if (scene) {
-            // Khởi động lại scene với mapKey mới
-            scene.scene.restart({ mapKey: message.data.mapKey });
+            // Load map in FlutterScene
+            scene.loadMap(message.data.mapKey);
           }
         }
         break;
@@ -281,27 +281,62 @@ export function initWebViewCommunication(game) {
       case "RUN_PROGRAM":
         // Xử lý yêu cầu chạy chương trình
         if (message.data && message.data.program) {
-          const scene = game.scene.getScene("Scene");
+          const scene = game.scene.getScene("FlutterScene");
           if (scene) {
-            scene.loadProgram(message.data.program, true);
+            scene.runProgram(message.data.program);
           }
         }
         break;
 
       case "GET_STATUS":
         // Gửi trạng thái hiện tại
-        const scene = game.scene.getScene("Scene");
+        const scene = game.scene.getScene("FlutterScene");
         if (scene) {
-          const status = {
-            mapKey: scene.mapKey,
-            collectedBatteries: scene.collectedBatteries || 0,
-            collectedBatteryTypes: scene.collectedBatteryTypes || {
-              red: 0,
-              yellow: 0,
-              green: 0,
-            },
-          };
+          const status = scene.getGameStatus();
           sendMessageViaPhaserChannel("STATUS", status);
+        }
+        break;
+
+      case "PAUSE_PROGRAM":
+        // Tạm dừng chương trình
+        const pauseScene = game.scene.getScene("FlutterScene");
+        if (pauseScene) {
+          pauseScene.pauseGame();
+        }
+        break;
+
+      case "RESUME_PROGRAM":
+        // Tiếp tục chương trình
+        const resumeScene = game.scene.getScene("FlutterScene");
+        if (resumeScene) {
+          resumeScene.resumeGame();
+        }
+        break;
+
+      case "STOP_PROGRAM":
+        // Dừng chương trình
+        const stopScene = game.scene.getScene("FlutterScene");
+        if (stopScene) {
+          stopScene.resetGame();
+        }
+        break;
+
+      case "SET_SPEED":
+        // Đặt tốc độ robot
+        if (message.data && message.data.speed) {
+          const speedScene = game.scene.getScene("FlutterScene");
+          if (speedScene) {
+            speedScene.setRobotSpeed(message.data.speed);
+          }
+        }
+        break;
+
+      case "GET_MAP_INFO":
+        // Lấy thông tin map
+        const mapScene = game.scene.getScene("FlutterScene");
+        if (mapScene) {
+          const mapInfo = mapScene.getMapInfo();
+          sendMessageViaPhaserChannel("MAP_INFO", mapInfo);
         }
         break;
     }

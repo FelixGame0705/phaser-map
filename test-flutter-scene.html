@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test FlutterScene - Fixed Map System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .test-panel {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+        }
+        
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Test FlutterScene - Fixed Map System</h1>
+            <p>Testing FlutterScene with MapLoader (same as Scene.js)</p>
+        </div>
+
+        <div class="test-panel">
+            <h3>🎯 Test Controls</h3>
+            <div class="button-group">
+                <button onclick="startMap('basic1')">Start Basic 1</button>
+                <button onclick="startMap('basic2')">Start Basic 2</button>
+                <button onclick="startMap('basic3')">Start Basic 3</button>
+                <button onclick="runTestProgram()">Run Test Program</button>
+                <button onclick="getStatus()">Get Status</button>
+                <button onclick="clearLog()">Clear Log</button>
+            </div>
+            
+            <div id="status" class="status">
+                Status: Not connected
+            </div>
+        </div>
+
+        <div class="test-panel">
+            <h3>📝 Communication Log</h3>
+            <div id="log" class="log">
+                Waiting for game connection...
+            </div>
+        </div>
+
+        <div class="test-panel">
+            <h3>🎮 FlutterScene Game</h3>
+            <iframe id="gameFrame" src="http://localhost:5173"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const gameFrame = document.getElementById('gameFrame');
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+
+        // Listen for messages from game
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'http://localhost:5173') return;
+
+            const message = event.data;
+            logMessage('received', `📥 ${message.type}`, message.data);
+            
+            // Update status
+            if (message.type === 'READY') {
+                status.textContent = 'Status: Connected and ready';
+                status.style.background = '#e8f5e8';
+            } else if (message.type === 'ERROR') {
+                status.textContent = `Status: Error - ${message.data.message}`;
+                status.style.background = '#ffebee';
+            }
+        });
+
+        // Send message to game
+        function sendToGame(type, data = {}) {
+            const message = {
+                source: "parent-website",
+                type: type,
+                data: data,
+                timestamp: Date.now()
+            };
+
+            gameFrame.contentWindow.postMessage(message, 'http://localhost:5173');
+            logMessage('sent', `📤 ${type}`, data);
+        }
+
+        // Log message
+        function logMessage(direction, title, data) {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = `[${time}] ${title}\n${JSON.stringify(data, null, 2)}\n\n`;
+            
+            log.textContent += logEntry;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Test functions
+        function startMap(mapKey) {
+            sendToGame('START_MAP', { mapKey });
+        }
+
+        function runTestProgram() {
+            const program = {
+                version: "1.0.0",
+                programName: "test_program",
+                actions: [
+                    { type: "forward", count: 2 },
+                    { type: "turnRight" },
+                    { type: "forward", count: 1 },
+                    { type: "collect", color: "red" }
+                ]
+            };
+            sendToGame('RUN_PROGRAM', { program });
+        }
+
+        function getStatus() {
+            sendToGame('GET_STATUS');
+        }
+
+        function clearLog() {
+            log.textContent = 'Log cleared...\n';
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            logMessage('system', '🚀 Test page loaded', {});
+            logMessage('system', '💡 Make sure the game server is running on localhost:5173', {});
+        });
+    </script>
+</body>
+</html>

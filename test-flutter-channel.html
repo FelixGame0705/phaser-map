@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test FlutterChannel với jsChannel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-section {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 700px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+        }
+        
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Test FlutterChannel với jsChannel</h1>
+            <p>Simulation Flutter WebView communication với Phaser game</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 FlutterChannel Controls</h3>
+            <div class="button-group">
+                <button onclick="initFlutterChannel()">Khởi tạo FlutterChannel</button>
+                <button onclick="testFlutterMessage()">Test Flutter Message</button>
+                <button onclick="simulateFlutterStartMap()">Flutter Start Map</button>
+                <button onclick="simulateFlutterRunProgram()">Flutter Run Program</button>
+                <button onclick="simulateFlutterGetStatus()">Flutter Get Status</button>
+                <button onclick="clearLog()">Xóa Log</button>
+            </div>
+            
+            <div id="channelStatus" class="status">
+                FlutterChannel chưa được khởi tạo
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Communication Log</h3>
+            <div id="log" class="log">
+                Đang chờ FlutterChannel initialization...
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎮 Phaser Game</h3>
+            <iframe id="gameFrame" src="http://localhost:5173"></iframe>
+        </div>
+    </div>
+
+    <!-- jsChannel Library Simulation -->
+    <script>
+        // Simulate jsChannel library
+        window.JsChannel = {
+            create: function(name, options) {
+                console.log('Creating JsChannel:', name, options);
+                addLog('🔄 JsChannel created: ' + name, options);
+                
+                return {
+                    postMessage: function(message) {
+                        console.log('JsChannel postMessage:', message);
+                        addLog('📤 JsChannel postMessage', JSON.parse(message));
+                        
+                        // Simulate message handling
+                        try {
+                            const data = JSON.parse(message);
+                            if (data.source === "phaser-robot-game") {
+                                addLog('📥 Game message received via JsChannel', data);
+                            }
+                        } catch (e) {
+                            addLog('❌ JsChannel parse error', e.message);
+                        }
+                    }
+                };
+            }
+        };
+
+        const gameFrame = document.getElementById('gameFrame');
+        const log = document.getElementById('log');
+        const channelStatus = document.getElementById('channelStatus');
+        let flutterChannel = null;
+
+        // Lắng nghe thông báo từ game
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'http://localhost:5173') return;
+
+            const message = event.data;
+            addLog(`📥 Game message: ${message.type}`, message);
+        });
+
+        // Thêm log
+        function addLog(title, data) {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = `[${time}] ${title}\n${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}\n\n`;
+            log.textContent += logEntry;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Khởi tạo FlutterChannel
+        function initFlutterChannel() {
+            try {
+                flutterChannel = JsChannel.create('flutter_channel', {
+                    onMessage: function(message, callback) {
+                        addLog('📥 FlutterChannel received', message);
+                        
+                        try {
+                            const data = JSON.parse(message);
+                            if (data.source === "flutter-app") {
+                                addLog('📱 Flutter message processed', data);
+                                
+                                // Forward to game iframe
+                                gameFrame.contentWindow.postMessage(data, 'http://localhost:5173');
+                                addLog('📤 Forwarded to game', data);
+                            }
+                        } catch (e) {
+                            addLog('❌ FlutterChannel parse error', e.message);
+                        }
+                    }
+                });
+
+                // Set global FlutterChannel for game
+                window.FlutterChannel = flutterChannel;
+                
+                channelStatus.innerHTML = '<strong>✅ FlutterChannel đã được khởi tạo thành công!</strong>';
+                channelStatus.className = 'status';
+                
+                addLog('✅ FlutterChannel initialized', {});
+                
+                // Test connection
+                setTimeout(() => {
+                    testFlutterMessage();
+                }, 1000);
+                
+            } catch (e) {
+                channelStatus.innerHTML = '<strong>❌ Lỗi khởi tạo FlutterChannel: ' + e.message + '</strong>';
+                channelStatus.className = 'error';
+                addLog('❌ FlutterChannel init error', e.message);
+            }
+        }
+
+        // Test Flutter message
+        function testFlutterMessage() {
+            if (!flutterChannel) {
+                addLog('❌ FlutterChannel chưa được khởi tạo', {});
+                return;
+            }
+
+            const testMessage = {
+                source: "flutter-app",
+                type: "TEST",
+                data: { 
+                    message: "Hello from Flutter simulation!",
+                    timestamp: Date.now()
+                },
+                timestamp: Date.now()
+            };
+
+            flutterChannel.postMessage(JSON.stringify(testMessage));
+            addLog('🧪 Test message sent', testMessage);
+        }
+
+        // Simulate Flutter Start Map
+        function simulateFlutterStartMap() {
+            if (!flutterChannel) {
+                addLog('❌ FlutterChannel chưa được khởi tạo', {});
+                return;
+            }
+
+            const message = {
+                source: "flutter-app",
+                type: "START_MAP",
+                data: { mapKey: "basic1" },
+                timestamp: Date.now()
+            };
+
+            flutterChannel.postMessage(JSON.stringify(message));
+            addLog('🗺️ Flutter Start Map', message);
+        }
+
+        // Simulate Flutter Run Program
+        function simulateFlutterRunProgram() {
+            if (!flutterChannel) {
+                addLog('❌ FlutterChannel chưa được khởi tạo', {});
+                return;
+            }
+
+            const program = {
+                commands: [
+                    { type: "move", direction: "right" },
+                    { type: "move", direction: "down" },
+                    { type: "collect" }
+                ]
+            };
+
+            const message = {
+                source: "flutter-app",
+                type: "RUN_PROGRAM",
+                data: { program: program },
+                timestamp: Date.now()
+            };
+
+            flutterChannel.postMessage(JSON.stringify(message));
+            addLog('▶️ Flutter Run Program', message);
+        }
+
+        // Simulate Flutter Get Status
+        function simulateFlutterGetStatus() {
+            if (!flutterChannel) {
+                addLog('❌ FlutterChannel chưa được khởi tạo', {});
+                return;
+            }
+
+            const message = {
+                source: "flutter-app",
+                type: "GET_STATUS",
+                data: {},
+                timestamp: Date.now()
+            };
+
+            flutterChannel.postMessage(JSON.stringify(message));
+            addLog('📊 Flutter Get Status', message);
+        }
+
+        // Clear log
+        function clearLog() {
+            log.textContent = 'Log đã được xóa...\n';
+        }
+
+        // Auto-initialize on load
+        window.addEventListener('load', () => {
+            addLog('🚀 Test page loaded', {});
+            addLog('💡 Click "Khởi tạo FlutterChannel" để bắt đầu test', {});
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebViewMessenger với iframe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .control-group select, .control-group input, .control-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .control-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .status h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        iframe {
+            width: 100%;
+            height: 800px;
+            border: none;
+        }
+        
+        .message-item {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .message-item.sent {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .message-item.received {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Test WebViewMessenger với iframe</h1>
+            <p>Test giao tiếp giữa game Phaser và webview bên ngoài</p>
+        </div>
+
+        <div class="controls">
+            <h3>🎯 Điều khiển Game</h3>
+            
+            <div class="control-group">
+                <label for="mapSelect">Chọn Map:</label>
+                <select id="mapSelect">
+                    <option value="basic1">Basic 1</option>
+                    <option value="basic2">Basic 2</option>
+                    <option value="basic3">Basic 3</option>
+                    <option value="basic4">Basic 4</option>
+                    <option value="basic5">Basic 5</option>
+                    <option value="basic6">Basic 6</option>
+                    <option value="basic7">Basic 7</option>
+                    <option value="basic8">Basic 8</option>
+                    <option value="boolean1">Boolean 1</option>
+                    <option value="boolean2">Boolean 2</option>
+                    <option value="boolean3">Boolean 3</option>
+                    <option value="boolean4">Boolean 4</option>
+                    <option value="boolean5">Boolean 5</option>
+                    <option value="boolean6">Boolean 6</option>
+                    <option value="boolean7">Boolean 7</option>
+                    <option value="boolean8">Boolean 8</option>
+                    <option value="forloop1">For Loop 1</option>
+                    <option value="forloop2">For Loop 2</option>
+                    <option value="forloop3">For Loop 3</option>
+                    <option value="forloop4">For Loop 4</option>
+                    <option value="forloop5">For Loop 5</option>
+                    <option value="forloop6">For Loop 6</option>
+                    <option value="forloop7">For Loop 7</option>
+                    <option value="forloop8">For Loop 8</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="programInput">Chương trình Robot (JSON):</label>
+                <textarea id="programInput" placeholder='{"commands": [{"type": "move", "direction": "right"}, {"type": "move", "direction": "down"}]}'></textarea>
+            </div>
+
+            <div class="button-group">
+                <button onclick="startMap()">🚀 Bắt đầu Map</button>
+                <button onclick="loadMap()">🔄 Tải Map</button>
+                <button onclick="runProgram()">▶️ Chạy Chương trình</button>
+                <button onclick="getStatus()">📊 Lấy Trạng thái</button>
+                <button onclick="sendTestMessage()">🧪 Gửi Test Message</button>
+                <button onclick="clearLog()">🗑️ Xóa Log</button>
+            </div>
+        </div>
+
+        <div class="status">
+            <h3>📊 Trạng thái Game</h3>
+            <div id="gameStatus">Chưa kết nối...</div>
+        </div>
+
+        <div class="status">
+            <h3>📝 Log Giao tiếp</h3>
+            <div id="messageLog" class="log">Đang chờ thông báo từ game...\n</div>
+        </div>
+
+        <div class="game-container">
+            <iframe id="gameFrame" src="http://localhost:5173"></iframe>
+        </div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+        const gameFrame = document.getElementById('gameFrame');
+        const messageLog = document.getElementById('messageLog');
+        const gameStatus = document.getElementById('gameStatus');
+
+        // Lắng nghe thông báo từ game
+        window.addEventListener('message', (event) => {
+            // Kiểm tra origin để đảm bảo an toàn
+            if (event.origin !== 'http://localhost:5173') {
+                return;
+            }
+
+            const message = event.data;
+            logMessage('received', `📥 Nhận từ game: ${message.type}`, message);
+            
+            // Cập nhật trạng thái game
+            if (message.type === 'STATUS') {
+                updateGameStatus(message.data);
+            } else if (message.type === 'VICTORY') {
+                updateGameStatus(message.data);
+                logMessage('received', '🎉 Game thắng!', message.data);
+            } else if (message.type === 'PROGRESS') {
+                updateGameStatus(message.data);
+            } else if (message.type === 'ERROR') {
+                logMessage('received', '❌ Lỗi từ game', message.data);
+            } else if (message.type === 'READY') {
+                logMessage('received', '✅ Game sẵn sàng', message.data);
+                updateGameStatus({ status: 'Ready', ...message.data });
+            }
+        });
+
+        // Hàm gửi thông báo đến game
+        function sendMessageToGame(type, data = {}) {
+            const message = {
+                source: "parent-website",
+                type: type,
+                data: data,
+                timestamp: Date.now()
+            };
+
+            gameFrame.contentWindow.postMessage(message, 'http://localhost:5173');
+            logMessage('sent', `📤 Gửi đến game: ${type}`, data);
+        }
+
+        // Hàm log thông báo
+        function logMessage(direction, title, data) {
+            messageCount++;
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${title}\n${JSON.stringify(data, null, 2)}\n\n`;
+            
+            messageLog.textContent += logEntry;
+            messageLog.scrollTop = messageLog.scrollHeight;
+        }
+
+        // Hàm cập nhật trạng thái game
+        function updateGameStatus(data) {
+            let statusHtml = '<div class="message-item">';
+            statusHtml += `<strong>Map:</strong> ${data.mapKey || 'N/A'}<br>`;
+            statusHtml += `<strong>Pin đã thu thập:</strong> ${data.collectedBatteries || 0}<br>`;
+            
+            if (data.collectedBatteryTypes) {
+                statusHtml += `<strong>Chi tiết pin:</strong><br>`;
+                statusHtml += `- Đỏ: ${data.collectedBatteryTypes.red || 0}<br>`;
+                statusHtml += `- Vàng: ${data.collectedBatteryTypes.yellow || 0}<br>`;
+                statusHtml += `- Xanh: ${data.collectedBatteryTypes.green || 0}<br>`;
+            }
+            
+            if (data.isVictory !== undefined) {
+                statusHtml += `<strong>Trạng thái:</strong> ${data.isVictory ? '🎉 Thắng' : '⏳ Đang chơi'}<br>`;
+            }
+            
+            if (data.progress !== undefined) {
+                statusHtml += `<strong>Tiến độ:</strong> ${data.progress}%<br>`;
+            }
+            
+            statusHtml += '</div>';
+            gameStatus.innerHTML = statusHtml;
+        }
+
+        // Các hàm điều khiển game
+        function startMap() {
+            const mapKey = document.getElementById('mapSelect').value;
+            sendMessageToGame('START_MAP', { mapKey });
+        }
+
+        function loadMap() {
+            const mapKey = document.getElementById('mapSelect').value;
+            sendMessageToGame('LOAD_MAP', { mapKey });
+        }
+
+        function runProgram() {
+            const programText = document.getElementById('programInput').value;
+            try {
+                const program = JSON.parse(programText);
+                sendMessageToGame('RUN_PROGRAM', { program });
+            } catch (e) {
+                alert('Lỗi JSON: ' + e.message);
+            }
+        }
+
+        function getStatus() {
+            sendMessageToGame('GET_STATUS');
+        }
+
+        function sendTestMessage() {
+            sendMessageToGame('TEST', { 
+                message: 'Hello from parent!',
+                timestamp: Date.now()
+            });
+        }
+
+        function clearLog() {
+            messageLog.textContent = 'Log đã được xóa...\n';
+            messageCount = 0;
+        }
+
+        // Khởi tạo
+        window.addEventListener('load', () => {
+            logMessage('system', '🚀 Test iframe đã sẵn sàng', {});
+            
+            // Gửi thông báo test sau 2 giây
+            setTimeout(() => {
+                sendMessageToGame('TEST', { 
+                    message: 'Test connection from parent',
+                    timestamp: Date.now()
+                });
+            }, 2000);
+        });
+
+        // Test FlutterChannel simulation
+        function simulateFlutterChannel() {
+            if (window.FlutterChannel) {
+                logMessage('system', '🔄 FlutterChannel simulation', {});
+                
+                // Simulate Flutter sending message
+                setTimeout(() => {
+                    const testMessage = {
+                        source: "flutter-app",
+                        type: "START_MAP",
+                        data: { mapKey: "basic1" },
+                        timestamp: Date.now()
+                    };
+                    
+                    window.FlutterChannel.postMessage(JSON.stringify(testMessage));
+                }, 3000);
+            }
+        }
+
+        // Thêm FlutterChannel simulation cho test
+        window.FlutterChannel = {
+            postMessage: function(message) {
+                logMessage('received', '📱 FlutterChannel simulation', JSON.parse(message));
+            }
+        };
+
+        // Test jsChannel simulation
+        if (typeof JsChannel === 'undefined') {
+            window.JsChannel = {
+                create: function(name, options) {
+                    logMessage('system', '🔄 JsChannel simulation created', { name, options });
+                    return {
+                        postMessage: function(message) {
+                            logMessage('sent', '📱 JsChannel simulation', JSON.parse(message));
+                        }
+                    };
+                }
+            };
+        }
+    </script>
+</body>
+</html>

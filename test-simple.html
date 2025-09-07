@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebViewMessenger - Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Test WebViewMessenger - Simple</h1>
+            <p>Test giao tiếp cơ bản giữa game và webview</p>
+        </div>
+
+        <div class="controls">
+            <h3>Điều khiển Game</h3>
+            <button onclick="startBasic1()">Bắt đầu Basic 1</button>
+            <button onclick="startBasic2()">Bắt đầu Basic 2</button>
+            <button onclick="getGameStatus()">Lấy Trạng thái</button>
+            <button onclick="sendTestMessage()">Gửi Test</button>
+            <button onclick="clearLog()">Xóa Log</button>
+        </div>
+
+        <div class="log" id="log">
+            Đang chờ thông báo từ game...
+        </div>
+
+        <iframe id="gameFrame" src="http://localhost:5173"></iframe>
+    </div>
+
+    <script>
+        const gameFrame = document.getElementById('gameFrame');
+        const log = document.getElementById('log');
+
+        // Lắng nghe thông báo từ game
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'http://localhost:5173') return;
+
+            const message = event.data;
+            addLog(`📥 Nhận: ${message.type}`, message);
+        });
+
+        // Gửi thông báo đến game
+        function sendToGame(type, data = {}) {
+            const message = {
+                source: "parent-website",
+                type: type,
+                data: data,
+                timestamp: Date.now()
+            };
+
+            gameFrame.contentWindow.postMessage(message, 'http://localhost:5173');
+            addLog(`📤 Gửi: ${type}`, data);
+        }
+
+        // Thêm log
+        function addLog(title, data) {
+            const time = new Date().toLocaleTimeString();
+            log.textContent += `[${time}] ${title}\n${JSON.stringify(data, null, 2)}\n\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Các hàm điều khiển
+        function startBasic1() {
+            sendToGame('START_MAP', { mapKey: 'basic1' });
+        }
+
+        function startBasic2() {
+            sendToGame('START_MAP', { mapKey: 'basic2' });
+        }
+
+        function getGameStatus() {
+            sendToGame('GET_STATUS');
+        }
+
+        function sendTestMessage() {
+            sendToGame('TEST', { message: 'Hello from parent!' });
+        }
+
+        function clearLog() {
+            log.textContent = 'Log đã được xóa...\n';
+        }
+
+        // Khởi tạo
+        window.addEventListener('load', () => {
+            addLog('🚀 Test page đã sẵn sàng', {});
+        });
+    </script>
+</body>
+</html>
