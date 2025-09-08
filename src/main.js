@@ -25,7 +25,7 @@ const config = {
       gravity: { y: 0 },
     },
   },
-  scene: [FlutterScene, Scene, MenuScene], // FlutterScene first for Flutter integration
+  scene: [MenuScene,FlutterScene, Scene], // FlutterScene first for Flutter integration
 };
 
 const game = new Phaser.Game(config);
