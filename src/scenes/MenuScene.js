@@ -54,7 +54,7 @@ export default class MenuScene extends Phaser.Scene {
       mapText.on("pointerdown", () => {
         // Start the common Scene with selected mapKey
         const mapKey = `${prefix.toLowerCase()}${i}`; // e.g., basic1..basic8, boolean1..boolean8, forloop1..forloop8
-        this.scene.start("Scene", { mapKey: 'basic1'});
+        this.scene.start("Scene", { mapKey:'basic1'});
       });
     }
   }
